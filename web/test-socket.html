@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>条码扫描器监听测试</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Microsoft YaHei", Arial, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        padding: 30px;
+        max-width: 800px;
+        width: 100%;
+        animation: fadeIn 0.6s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      h1 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+        font-size: 2.5em;
+        font-weight: 300;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .status {
+        padding: 15px 20px;
+        margin: 20px 0;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 500;
+        font-size: 1.1em;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .status::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.2),
+          transparent
+        );
+        transition: left 0.5s;
+      }
+
+      .status.connected::before {
+        left: 100%;
+      }
+
+      .connected {
+        background: linear-gradient(135deg, #4caf50, #45a049);
+        color: white;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+      }
+
+      .disconnected {
+        background: linear-gradient(135deg, #f44336, #d32f2f);
+        color: white;
+        box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
+      }
+
+      .messages {
+        background: #f8f9fa;
+        border: 2px solid #e9ecef;
+        border-radius: 15px;
+        padding: 20px;
+        height: 400px;
+        overflow-y: auto;
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin: 20px 0;
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.1);
+        transition: border-color 0.3s ease;
+      }
+
+      .messages:hover {
+        border-color: #667eea;
+      }
+
+      .messages::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .messages::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+      }
+
+      .messages::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+      }
+
+      .messages::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+
+      .info {
+        background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+        border-left: 4px solid #2196f3;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+      }
+
+      .info h3 {
+        color: #1976d2;
+        margin-bottom: 10px;
+        font-size: 1.2em;
+      }
+
+      .info p {
+        color: #424242;
+        margin-bottom: 8px;
+        line-height: 1.6;
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        margin: 20px 0;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-secondary {
+        background: linear-gradient(135deg, #f093fb, #f5576c);
+        color: white;
+        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+      }
+
+      .stat-item {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .stat-value {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #667eea;
+      }
+
+      .stat-label {
+        font-size: 0.9em;
+        color: #666;
+        margin-top: 5px;
+      }
+
+      @media (max-width: 600px) {
+        .container {
+          padding: 20px;
+          margin: 10px;
+        }
+
+        h1 {
+          font-size: 2em;
+        }
+
+        .messages {
+          height: 300px;
+        }
+
+        .controls {
+          flex-direction: column;
+        }
+
+        .btn {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔍 条码扫描器监听</h1>
+
+      <div id="status" class="status disconnected">🔌 未连接到服务器</div>
+
+      <div class="controls">
+        <button class="btn btn-primary" onclick="reconnect()">
+          🔄 重新连接
+        </button>
+        <button class="btn btn-secondary" onclick="clearMessages()">
+          🗑️ 清空消息
+        </button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-item">
+          <div class="stat-value" id="connectTime">--</div>
+          <div class="stat-label">连接时间</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="messageCount">0</div>
+          <div class="stat-label">消息数量</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="barcodeCount">0</div>
+          <div class="stat-label">扫码次数</div>
+        </div>
+      </div>
+
+      <div class="messages" id="messages">等待连接到服务器...</div>
+
+      <div class="info">
+        <h3>📋 使用说明</h3>
+        <p><strong>连接状态：</strong> 页面会自动连接到WebSocket服务器</p>
+        <p><strong>扫码监听：</strong> 连接成功后，系统会自动监听扫码枪输入</p>
+        <p><strong>实时推送：</strong> 扫码数据会实时推送到此页面显示</p>
+        <p><strong>服务器地址：</strong> ws://localhost:8080/ws</p>
+      </div>
+    </div>
+
+    <script>
+      let ws = null;
+      let connectTime = null;
+      let messageCount = 0;
+      let barcodeCount = 0;
+      let reconnectInterval = null;
+
+      // 连接WebSocket
+      function connect() {
+        try {
+          ws = new WebSocket("ws://localhost:8080/ws");
+
+          ws.onopen = function (event) {
+            connectTime = new Date();
+            updateStatus("connected", "✅ 已连接 - 开始监听设备");
+            addMessage("🎉 WebSocket连接成功！开始监听扫码设备...");
+            updateStats();
+
+            // 清除重连定时器
+            if (reconnectInterval) {
+              clearInterval(reconnectInterval);
+              reconnectInterval = null;
+            }
+          };
+
+          ws.onmessage = function (event) {
+            messageCount++;
+            let data = event.data;
+
+            try {
+              // 尝试解析JSON数据
+              const jsonData = JSON.parse(data);
+              if (jsonData.type === "barcode") {
+                barcodeCount++;
+                addMessage(
+                  `📊 扫码数据: ${jsonData.data.content} (类型: ${jsonData.data.type})`
+                );
+              } else {
+                addMessage(`📨 消息: ${data}`);
+              }
+            } catch (e) {
+              // 如果不是JSON，直接显示
+              if (data.trim()) {
+                barcodeCount++;
+                addMessage(`📊 扫码: ${data}`);
+              }
+            }
+
+            updateStats();
+          };
+
+          ws.onclose = function (event) {
+            updateStatus("disconnected", "❌ 连接断开");
+            addMessage("⚠️ WebSocket连接已断开，尝试重新连接...");
+
+            // 开始自动重连
+            if (!reconnectInterval) {
+              reconnectInterval = setInterval(() => {
+                addMessage("🔄 正在尝试重新连接...");
+                connect();
+              }, 3000);
+            }
+          };
+
+          ws.onerror = function (error) {
+            addMessage("❌ WebSocket连接错误");
+            console.error("WebSocket错误:", error);
+          };
+        } catch (error) {
+          addMessage("❌ 无法创建WebSocket连接: " + error.message);
+          console.error("连接错误:", error);
+        }
+      }
+
+      // 更新连接状态
+      function updateStatus(type, message) {
+        const statusElement = document.getElementById("status");
+        statusElement.className = `status ${type}`;
+        statusElement.textContent = message;
+      }
+
+      // 添加消息到显示区域
+      function addMessage(message) {
+        const messagesElement = document.getElementById("messages");
+        const timestamp = new Date().toLocaleTimeString();
+        const formattedMessage = `[${timestamp}] ${message}\n`;
+
+        messagesElement.textContent += formattedMessage;
+        messagesElement.scrollTop = messagesElement.scrollHeight;
+      }
+
+      // 更新统计信息
+      function updateStats() {
+        document.getElementById("messageCount").textContent = messageCount;
+        document.getElementById("barcodeCount").textContent = barcodeCount;
+
+        if (connectTime) {
+          const duration = Math.floor((new Date() - connectTime) / 1000);
+          const minutes = Math.floor(duration / 60);
+          const seconds = duration % 60;
+          document.getElementById(
+            "connectTime"
+          ).textContent = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+        }
+      }
+
+      // 重新连接
+      function reconnect() {
+        if (ws) {
+          ws.close();
+        }
+        messageCount = 0;
+        barcodeCount = 0;
+        connectTime = null;
+        updateStats();
+        addMessage("🔄 手动重新连接...");
+        setTimeout(connect, 500);
+      }
+
+      // 清空消息
+      function clearMessages() {
+        document.getElementById("messages").textContent = "";
+        messageCount = 0;
+        barcodeCount = 0;
+        updateStats();
+        addMessage("🗑️ 消息已清空");
+      }
+
+      // 定时更新连接时间
+      setInterval(updateStats, 1000);
+
+      // 页面加载时自动连接
+      window.onload = function () {
+        connect();
+      };
+
+      // 页面关闭时断开连接
+      window.onbeforeunload = function () {
+        if (ws) {
+          ws.close();
+        }
+      };
+    </script>
+  </body>
+</html>
